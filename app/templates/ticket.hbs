@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid rgb(29, 180, 46);
+      padding: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Railway E-Ticket</h1>
+
+<p><b>PNR:</b> {{pnr}}</p>
+<p><b>Train:</b> {{train_number}} - {{train_name}}</p>
+<p><b>From:</b> {{from_station}}</p>
+<p><b>To:</b> {{to_station}}</p>
+<p><b>Date:</b> {{journey_date}}</p>
+<p><b>Class:</b> {{class_type}}</p>
+<p><b>Booking Type:</b>{{booking_type}}</p>
+{{!-- <p><b>Status:</b>{{status}}</p> --}}
+
+
+<h3>Passengers</h3>
+<table>
+  <tr>
+    <th>Name</th>
+    <th>Age</th>
+    <th>Gender</th>
+  </tr>
+
+  {{#if passengers.length}}
+    {{#each passengers}}
+      <tr>
+        <td>{{this.name}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.gender}}</td>
+      </tr>
+    {{/each}}
+  {{else}}
+    <tr>
+      <td colspan="3">No passengers</td>
+    </tr>
+  {{/if}}
+
+</table>
+
+<h3>Seat Details</h3>
+<table>
+  <tr>
+    <th>Coach</th>
+    <th>Seat</th>
+  </tr>
+
+  {{#if seat_details.length}}
+    {{#each seat_details}}
+      <tr>
+        <td>{{this.coach}}</td>
+        <td>{{this.seat_number}}</td> 
+      </tr>
+    {{/each}}
+  {{else}}
+    <tr>
+      <td colspan="2">No seat info</td>
+    </tr>
+  {{/if}}
+
+</table>
+
+<p><b>Fare per Passenger:</b> ₹{{fare_per_passenger}}</p>
+<p><b>Total Fare:</b> ₹{{total_fare}}</p>
+<p><b>Status:</b> {{status}}</p>
+
+</body>
+</html>

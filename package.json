@@ -1,0 +1,25 @@
+{
+  "name": "booking_microservice",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js start",
+    "dev": "nodemon server.js dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "fs": "^0.0.1-security",
+    "handlebars": "^4.7.8",
+    "jsonwebtoken": "^9.0.3",
+    "nodemon": "^3.1.14",
+    "puppeteer": "^24.40.0"
+  }
+}
