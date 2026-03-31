@@ -14,6 +14,6 @@ connectDB();
 
 app.use("/v1/booking", BookingAndSchema);
 
-app.listen(3004, () => {
-    console.log("Server running on port 3004");
+app.listen(process.env.PORT, () => {
+    console.log(`Server running on port  ${process.env.PORT}`);
 });

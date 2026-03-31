@@ -1,127 +1,118 @@
+const jwt = require("jsonwebtoken");
 const bookingService = require("../services/bookingService");
 const generateTicketPDF = require("../utils/generateTicket");
-const Booking = require("../models/bookingSchema.model")
-const jwt = require("jsonwebtoken")
+const Booking = require("../models/bookingSchema.model");
+const fs = require("fs");
 
 class BookingController {
-async bookTicket(req, res) {
+
+  // BOOK TICKET
+  async bookTicket(req, res) {
     try {
-      // 🔐 1. Extract token from header
-      const authHeader = req.headers.authorization;
+      console.log("going to decode");
+      const decodedUser = req.user;
+      console.log("decoded", decodedUser);
 
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({
-          success: false,
-          message: "Token missing or invalid"
-        });
-      }
+      // ✅ Map token claims to booking payload
+      const bookingPayload = {
+        ...req.body,
+        user_id: decodedUser.id,          // required by schema
+        email: decodedUser.email,
+        phone: decodedUser.phone,
+        role: decodedUser.role,
+        fullName: decodedUser.fullName,
+        user_name: decodedUser.user_name,
+        email_verified: decodedUser.email_verified,
+        phone_verified: decodedUser.phone_verified,
+        aadhaarId_verified: decodedUser.aadhaarId_verified
+        // add other claims if needed
+      };
 
-      const token = authHeader.split(" ")[1];
-      console.log(token)
+      console.log("Booking payload:", bookingPayload);
 
-      // 🔐 2. Verify token
-      let decoded;
-      try {
-  console.log("TOKEN:", token);
-  console.log("SECRET:", process.env.JWT_SECRET);
+      const booking = await bookingService.bookSeat(bookingPayload);
 
-  decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-  console.log("DECODED:", decoded);
-
-} catch (err) {
-  console.error("JWT ERROR:", err.message);
-
-  return res.status(401).json({
-    success: false,
-    message: err.message   // 👈 show real error
-  });
-}
-      console.log(".......")
-      console.log(decoded);
-      // 🔥 3. Extract user details
-      const user_id = decoded.user_id || decoded.id;
-      console.log("#############################")
-      console.log(user_id)
-      const email = decoded.email;
-      console.log(email)
-
-      if ( !email) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid token payload"
-        });
-      }
-
-      // 🔥 4. Call service (NO decoding inside service anymore)
-      const booking = await bookingService.bookTicket(
-        req.body,
-        user_id,
-        email // ✅ pass email directly
-      );
-
-      return res.status(200).json({
+      return res.status(201).json({
         success: true,
         message: "Ticket booked successfully",
         data: booking
       });
-
     } catch (err) {
       console.error("BOOKING ERROR:", err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
 
-      return res.status(500).json({
-        success: false,
-        message: err.message || "Something went wrong"
-      });
-    }}
-
+  // GET BOOKING
   async getBooking(req, res) {
     try {
-      const booking = await bookingService.getBooking(req.params.pnr);
+      const { pnr } = req.params;
+      if (!pnr) {
+        return res.status(400).json({ success: false, message: "PNR is required" });
+      }
+
+      const booking = await bookingService.getBooking(pnr);
+      if (!booking) {
+        return res.status(404).json({ success: false, message: "Booking not found" });
+      }
+
       return res.status(200).json({ success: true, data: booking });
     } catch (err) {
-      return res.status(404).json({ success: false, message: err.message });
+      return res.status(500).json({ success: false, message: err.message });
     }
   }
-  async  downloadTicket(req, res) {
-  try {
-    const { pnr } = req.params;
 
-    const booking = await Booking.findOne({ pnr });
-    console.log(booking)
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
+  // DOWNLOAD TICKET
+  async downloadTicket(req, res) {
+    try {
+      const { pnr } = req.params;
+      const { user_id } = req.user;
 
-    // 📄 Generate PDF
-    const filePath = await generateTicketPDF(booking);
-
-    // 📤 Send file
-    return res.download(filePath);
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-}
-
-async cancelTicket(req,res){
-  try{
-      const {pnr} = req.params;
       if (!pnr) {
-      return res.status(404).json({ message: "pnr not found" });
+        return res.status(400).json({ success: false, message: "PNR is required" });
+      }
+
+      const booking = await Booking.findOne({ pnr, user_id });
+      if (!booking) {
+        return res.status(404).json({ success: false, message: "Booking not found" });
+      }
+
+      const filePath = await generateTicketPDF(booking);
+
+      res.download(filePath, () => {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
     }
-
-
-      
-      const result = bookingService.cancelTicket(pnr);
-      return res.status(200).json({success : true,message:`Ticket canceled sucessfully for ${pnr}`})
-  }catch(error)
-  {
-    return res.status(500).json({success:false,data:error.message})
   }
-  
-  
-}
+
+  // CANCEL TICKET
+  async cancelTicket(req, res) {
+    try {
+      const { pnr } = req.params;
+      const { user_id } = req.user;
+
+      if (!pnr) {
+        return res.status(400).json({ success: false, message: "PNR is required" });
+      }
+
+      const result = await bookingService.cancelTicket(pnr, user_id);
+      if (!result) {
+        return res.status(404).json({ success: false, message: "Booking not found or already cancelled" });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Ticket cancelled successfully for ${pnr}`,
+        data: result
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = new BookingController();

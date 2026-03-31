@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 
 const passengerSchema = new mongoose.Schema({
-  name: String,
-  age: Number,
-  status: {
+  name: { type: String, required: true },
+  age: { type: Number, required: true },
+  gender: {
     type: String,
     enum: ["MALE", "FEMALE", "NOT PREFERRED"],
     default: "NOT PREFERRED"
@@ -11,8 +11,8 @@ const passengerSchema = new mongoose.Schema({
 }, { _id: false });
 
 const seatSchema = new mongoose.Schema({
-  coach: String,
-  seat_number: Number
+  coach: { type: String, required: true },
+  seat_number: { type: Number, required: true }
 }, { _id: false });
 
 const bookingSchema = new mongoose.Schema({
@@ -20,7 +20,6 @@ const bookingSchema = new mongoose.Schema({
 
   user_id: { type: String, required: true },
 
-  // 🔥 IMPORTANT
   schedule_id: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
@@ -31,10 +30,10 @@ const bookingSchema = new mongoose.Schema({
   train_number: String,
   train_name: String,
 
-  from_station: String,
-  to_station: String,
+  from_station: { type: String, required: true },
+  to_station: { type: String, required: true },
 
-  class_type: String,
+  class_type: { type: String, required: true },
 
   booking_type: {
     type: String,
@@ -42,27 +41,21 @@ const bookingSchema = new mongoose.Schema({
     default: "GENERAL"
   },
 
-  journey_date: Date,
+  journey_date: { type: Date, required: true },
 
   passengers: [passengerSchema],
   seat_details: [seatSchema],
 
   status: {
     type: String,
-    enum: ["CONFIRMED", "WAITING"],
+    enum: ["CONFIRMED", "WAITING", "CANCELLED"],
     default: "CONFIRMED"
   },
 
-  fare_per_passenger: {
-    type: Number,
-    required: true
-  },
+  fare_per_passenger: { type: Number, required: true },
+  total_fare: { type: Number, required: true },
 
-  total_fare: {
-    type: Number,
-    required: true
-  }
-
+  cancellation_reason: { type: String } // optional
 }, { timestamps: true });
 
 module.exports = mongoose.model("Booking", bookingSchema);
