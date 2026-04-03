@@ -2,53 +2,61 @@ const scheduleService = require("../services/scheduleService");
 
 class ScheduleController {
 
-  // GENERATE SCHEDULE
   async generateSchedule(req, res) {
     try {
-      const token = req.headers.authorization;
-      const schedules = await scheduleService.generateSchedule(req.body, token);
+      const { train_number, days, running_days } = req.body;
+      
+      if (!train_number || !days || !running_days) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields: train_number, days, running_days"
+        });
+      }
+      console.log("entering into schedule service...")
+      const schedules = await scheduleService.generateSchedule(req.body);
 
       return res.status(200).json({
         success: true,
-        message: "Schedules created successfully",
+        message: `${schedules.length} schedules created successfully`,
         count: schedules.length,
         data: schedules
       });
     } catch (err) {
-      return res.status(400).json({ success: false, message: err.message });
-    }
-  }
-
-  // SEARCH SCHEDULES
-async searchSchedules(req, res) {
-  try {
-    // ✅ FIX: use query instead of body
-    const { from, to, date } = req.query;
-
-    if (!from || !to || !date) {
-      return res.status(400).json({
-        success: false,
-        message: "from, to and date are required"
+      console.error("Schedule generation error:", err);
+      return res.status(400).json({ 
+        success: false, 
+        message: err.message 
       });
     }
-
-    const data = await scheduleService.searchSchedules(from, to, date);
-
-    return res.status(200).json({
-      success: true,
-      count: data.length,
-      data
-    });
-
-  } catch (err) {
-    console.error("❌ Schedule Controller ERROR:", err.message);
-
-    return res.status(500).json({
-      success: false,
-      message: err.message
-    });
   }
-}
+
+  async searchSchedules(req, res) {
+    try {
+      const { from, to, date } = req.query;
+
+      if (!from || !to || !date) {
+        return res.status(400).json({
+          success: false,
+          message: "from, to and date are required query parameters"
+        });
+      }
+
+      const data = await scheduleService.searchSchedules(from, to, date);
+
+      return res.status(200).json({
+        success: true,
+        count: data.length,
+        data
+      });
+
+    } catch (err) {
+      console.error("Schedule search error:", err);
+      return res.status(500).json({
+        success: false,
+        message: err.message
+      });
+    }
+  }
 }
 
 module.exports = new ScheduleController();
