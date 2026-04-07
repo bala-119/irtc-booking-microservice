@@ -36,7 +36,7 @@ class BookingController {
           payment_status: booking.payment_status,
           payment_expires_at: booking.payment_expires_at,
           requires_payment: true,
-          payment_link: `/api/payments/create-payment/${booking.pnr}` // Optional
+          // payment_link: `/api/payments/create-payment/${booking.pnr}` // Optional
         }
       });
     } catch (err) {
@@ -516,10 +516,10 @@ async getBookingForPayment(req, res) {
       });
     }
 
-    // FIX: Populate scheduleId to get train details
-    const booking = await Booking.findOne({ pnr }).populate('scheduleId');
+    // Get booking WITHOUT populate first
+    const booking = await Booking.findOne({ pnr });
+    
     console.log("Found booking:", booking);
-    console.log("Populated schedule:", booking?.scheduleId);
     
     if (!booking) {
       return res.status(404).json({
@@ -528,6 +528,7 @@ async getBookingForPayment(req, res) {
       });
     }
 
+    // Return ALL booking data including passengers array
     return res.status(200).json({
       success: true,
       data: {
@@ -543,16 +544,123 @@ async getBookingForPayment(req, res) {
         train_name: booking.train_name,
         class_type: booking.class_type,
         journey_date: booking.journey_date,
+        passengers: booking.passengers || [],  // ADD THIS - include passengers array
         passenger_count: booking.passengers?.length || 0,
         payment_expires_at: booking.payment_expires_at,
         fare_per_passenger: booking.fare_per_passenger,
         stop_gaps: booking.stop_gaps,
-        waiting_number: booking.waiting_number
+        waiting_number: booking.waiting_number,
+        seat_details: booking.seat_details || []  // Also include seat details
       }
     });
 
   } catch (error) {
     console.error("Get booking for payment error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
+// Get all bookings for the authenticated user (from token)
+async getAllMyBookings(req, res) {
+  console.log("getting all my booking")
+  try {
+    // Get user_id from the token (attached by authMiddleware)
+    const user_id = req.user.id;
+    
+    console.log(`📋 Fetching all bookings for user_id: ${user_id}`);
+    
+    // Find all bookings for this user
+    const bookings = await Booking.find({ user_id: user_id })
+      .sort({ createdAt: -1 }); // Latest first
+    
+    if (!bookings || bookings.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No bookings found",
+        count: 0,
+        data: []
+      });
+    }
+    
+    // Return formatted response
+    return res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings.map(booking => ({
+        _id: booking._id,
+        pnr: booking.pnr,
+        train_number: booking.train_number,
+        train_name: booking.train_name,
+        from_station: booking.from_station,
+        to_station: booking.to_station,
+        journey_date: booking.journey_date,
+        class_type: booking.class_type,
+        booking_status: booking.booking_status,
+        payment_status: booking.payment_status,
+        total_fare: booking.total_fare,
+        passenger_count: booking.passengers?.length || 0,
+        passengers: booking.passengers,
+        seat_details: booking.seat_details,
+        created_at: booking.createdAt,
+        confirmed_at: booking.confirmed_at,
+        payment_details: booking.payment_details
+      }))
+    });
+    
+  } catch (error) {
+    console.error("Get all my bookings error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+// Get all bookings for the authenticated user
+async getUserAllBookings(req, res) {
+  try {
+    const { id: user_id } = req.user;
+    
+    console.log(`📋 Fetching all bookings for user: ${user_id}`);
+    
+    const bookings = await Booking.find({ user_id })
+      .sort({ createdAt: -1 }); // Latest first
+    
+    if (!bookings || bookings.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No bookings found for this user",
+        count: 0,
+        data: []
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings.map(booking => ({
+        _id: booking._id,
+        pnr: booking.pnr,
+        train_number: booking.train_number,
+        train_name: booking.train_name,
+        from_station: booking.from_station,
+        to_station: booking.to_station,
+        journey_date: booking.journey_date,
+        class_type: booking.class_type,
+        booking_status: booking.booking_status,
+        payment_status: booking.payment_status,
+        total_fare: booking.total_fare,
+        passenger_count: booking.passengers?.length || 0,
+        seat_details: booking.seat_details,
+        created_at: booking.createdAt,
+        confirmed_at: booking.confirmed_at
+      }))
+    });
+    
+  } catch (error) {
+    console.error("Get user bookings error:", error);
     return res.status(500).json({
       success: false,
       message: error.message
@@ -566,10 +674,11 @@ async confirmPayment(req, res) {
   console.log("Request body:", JSON.stringify(req.body, null, 2));
   
   try {
-    // FIX: Get pnr from body OR params (support both)
+    // Get pnr from BOTH body and params
     const { pnr, payment_id, transaction_id, payment_status, payment_date, payment_method, stripe_payment_intent_id } = req.body;
     const pnrFromParams = req.params.pnr;
     
+    // Use whichever one exists
     const finalPnr = pnr || pnrFromParams;
     
     console.log("Final PNR:", finalPnr);
@@ -577,28 +686,12 @@ async confirmPayment(req, res) {
     if (!finalPnr) {
       return res.status(400).json({
         success: false,
-        message: "PNR is required in either body or params"
+        message: "PNR is required"
       });
     }
     
-    const serviceAuth = req.headers['x-service-auth'];
-    const expectedToken = process.env.SERVICE_AUTH_TOKEN || 'internal-secret-key-12345';
-    
-    console.log("Service auth header:", serviceAuth);
-    console.log("Expected token:", expectedToken);
-    
-    if (!serviceAuth || serviceAuth !== expectedToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'Unauthorized service request'
-      });
-    }
-
-    // Find booking and populate scheduleId
-    const booking = await Booking.findOne({ pnr: finalPnr }).populate('scheduleId');
-    
-    console.log("Found booking:", booking ? booking.pnr : "NOT FOUND");
-    console.log("Schedule data:", booking?.scheduleId);
+    // Find the booking
+    const booking = await Booking.findOne({ pnr: finalPnr });
     
     if (!booking) {
       return res.status(404).json({
@@ -606,92 +699,41 @@ async confirmPayment(req, res) {
         message: "Booking not found"
       });
     }
-
-    if (booking.payment_status === "PAID") {
-      return res.status(400).json({
-        success: false,
-        message: "Payment already completed for this booking"
-      });
-    }
-
-    if (booking.payment_expires_at && new Date() > new Date(booking.payment_expires_at)) {
-      booking.booking_status = "CANCELLED";
-      booking.payment_status = "FAILED";
-      booking.cancellation_reason = "Payment not completed within time limit";
-      await booking.save();
-      
-      return res.status(410).json({
-        success: false,
-        message: "Payment time expired. Booking has been cancelled.",
-        code: "PAYMENT_EXPIRED"
-      });
-    }
-
-    if (payment_status === "PAID") {
-      booking.payment_status = "PAID";
-      
-      if (booking.booking_status === "CONFIRMED") {
-        booking.confirmed_at = new Date();
-      }
-      
-      booking.payment_details = {
-        ...booking.payment_details,
-        payment_id,
-        transaction_id,
-        status: "PAID",
-        payment_method,
-        payment_date: payment_date || new Date(),
-        stripe_payment_intent_id
-      };
-      booking.payment_expires_at = null;
-      
-      console.log(`✅ Payment confirmed for PNR: ${finalPnr}`);
-    } else if (payment_status === "FAILED") {
-      booking.payment_status = "FAILED";
-      booking.payment_details = {
-        ...booking.payment_details,
-        payment_id,
-        transaction_id,
-        status: "FAILED",
-        failure_reason: req.body.failure_reason || "Payment failed",
-        payment_method
-      };
-      
-      console.log(`❌ Payment failed for PNR: ${finalPnr}`);
-    }
-
-    await booking.save();
-
-    // Return FULL booking details with populated schedule
-    const responseData = {
-      success: payment_status === "PAID",
-      message: payment_status === "PAID" 
-        ? (booking.booking_status === "WAITING" 
-            ? "Payment confirmed. You are on waiting list. Will be confirmed if seats become available."
-            : "Payment confirmed successfully. Ticket is confirmed.")
-        : "Payment failed",
-      data: {
-        pnr: booking.pnr,
-        booking_status: booking.booking_status,
-        waiting_number: booking.waiting_number,
-        payment_status: booking.payment_status,
-        confirmed_at: booking.confirmed_at,
-        total_fare: booking.total_fare,
-        // ADD THESE FIELDS FOR THE RESPONSE
-        train_number: booking.train_number,
-        train_name: booking.train_name,
-        from_station: booking.from_station,
-        to_station: booking.to_station,
-        class_type: booking.class_type,
-        journey_date: booking.journey_date,
-        passenger_count: booking.passengers?.length || 0
-      }
+    
+    console.log("Current payment_status:", booking.payment_status);
+    
+    // Update payment status to PAID
+    booking.payment_status = "PAID";
+    booking.payment_expires_at = null;
+    booking.confirmed_at = new Date();
+    
+    // Update payment details
+    booking.payment_details = {
+      ...booking.payment_details,
+      payment_id: payment_id || `PAY-${Date.now()}`,
+      transaction_id: transaction_id || `TXN-${Date.now()}`,
+      status: "PAID",
+      payment_date: payment_date || new Date(),
+      payment_method: payment_method || "CARD",
+      stripe_payment_intent_id: stripe_payment_intent_id
     };
     
-    console.log("Response data being sent:", JSON.stringify(responseData, null, 2));
-
-    return res.status(200).json(responseData);
-
+    await booking.save();
+    
+    console.log(`✅ Payment confirmed for PNR: ${finalPnr}`);
+    console.log(`   New payment_status: ${booking.payment_status}`);
+    
+    return res.status(200).json({
+      success: true,
+      message: "Payment confirmed successfully",
+      data: {
+        pnr: booking.pnr,
+        payment_status: booking.payment_status,
+        booking_status: booking.booking_status,
+        confirmed_at: booking.confirmed_at
+      }
+    });
+    
   } catch (error) {
     console.error("Confirm payment error:", error);
     return res.status(500).json({

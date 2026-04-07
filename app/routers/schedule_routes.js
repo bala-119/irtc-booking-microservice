@@ -7,88 +7,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const checkProfileCompleted = require("../middlewares/checkProfileCompleted");
 const adminAuthMiddleware = require("../middlewares/admin.authMiddleware");
 
-// // ==================== ADMIN ROUTES ====================
-// router.post(
-//   "/schedule/generate",
-//   checkProfileCompleted,
-//   adminAuthMiddleware("admin"),
-//   scheduleController.generateSchedule
-// );
-
-// // ==================== PUBLIC ROUTES ====================
-// router.get("/schedule/search-trains", scheduleController.searchSchedules);
-
-// // ==================== PROTECTED USER ROUTES ====================
-// // Booking routes
-// router.post(
-//   "/book",
-//   checkProfileCompleted,
-//   authMiddleware(),
-//   bookingController.bookTicket
-// );
-
-// router.get(
-//   "/:pnr",
-//   checkProfileCompleted,
-//   authMiddleware(),
-//   bookingController.getBooking
-// );
-
-// router.get(
-//   "/download-ticket/:pnr",
-//   checkProfileCompleted,
-//   authMiddleware(),
-//   bookingController.downloadTicket
-// );
-
-// router.delete(
-//   "/cancel-ticket/:pnr",
-//   checkProfileCompleted,
-//   authMiddleware(),
-//   bookingController.cancelTicket
-// );
-
-// // ==================== PAYMENT SERVICE ENDPOINTS (Internal/Service-to-Service) ====================
-// // These endpoints are called by the Payment Service after successful payment
-
-// // Get booking details for payment processing (without user auth, uses service token)
-// router.get(
-//   "/for-payment/:pnr",
-//   bookingController.getBookingForPayment
-// );
-
-// // Confirm payment and update booking status
-// router.patch(
-//   "/confirm-payment",
-//   bookingController.confirmPayment
-// );
-
-// // Get payment status for a booking
-// router.get(
-//   "/payment-status/:pnr",
-//   authMiddleware(),
-//   bookingController.getPaymentStatus
-// );
-
-// // Get booking with payment details
-// router.get(
-//   "/with-payment/:pnr",
-//   authMiddleware(),
-//   bookingController.getBookingWithPayment
-// );
-
-// // Cancel unpaid booking
-// router.delete(
-//   "/cancel-unpaid/:pnr",
-//   authMiddleware(),
-//   bookingController.cancelUnpaidBooking
-// );
-
-// // Health check for payment service
-// router.get(
-//   "/health",
-//   bookingController.healthCheck
-// );
+// ==================== ADMIN ROUTES ====================
 router.post(
   "/schedule/generate",
   checkProfileCompleted,
@@ -135,6 +54,7 @@ router.post(
   adminAuthMiddleware("admin"),
   bookingController.releaseExpiredBookings
 );
+
 // ==================== PUBLIC ROUTES ====================
 router.get("/schedule/search-trains", scheduleController.searchSchedules);
 
@@ -142,6 +62,15 @@ router.get("/schedule/search-trains", scheduleController.searchSchedules);
 router.get("/pnr-status/:pnr", bookingController.getPublicPNRStatus);
 
 // ==================== PROTECTED USER ROUTES ====================
+
+// Get all bookings for logged in user - MUST BE BEFORE /:pnr
+router.get(
+  "/my-all-bookings",
+  checkProfileCompleted,
+  authMiddleware(),
+  bookingController.getAllMyBookings
+);
+
 // Booking routes
 router.post(
   "/book",
@@ -170,6 +99,7 @@ router.delete(
   authMiddleware(),
   bookingController.cancelTicket
 );
+
 // ==================== PAYMENT & BOOKING STATUS ROUTES ====================
 // Get payment status for a booking
 router.get(
@@ -186,6 +116,7 @@ router.get(
   authMiddleware(),
   bookingController.getBookingWithPayment
 );
+
 // Cancel unpaid booking (before payment)
 router.delete(
   "/cancel-unpaid/:pnr",
@@ -201,7 +132,8 @@ router.get(
   authMiddleware(),
   bookingController.getRefundStatus
 );
-// Get user's all bookings
+
+// Get user's all bookings (old method - keep for backward compatibility)
 router.get(
   "/my-bookings",
   checkProfileCompleted,
@@ -211,7 +143,7 @@ router.get(
 
 // ==================== INTERNAL SERVICE ENDPOINTS (Payment Service) ====================
 // These endpoints are called by the Payment Service after successful payment
-// Service-to-service authentication using x-service-auth header
+// No authentication required for internal endpoints
 
 // Get booking details for payment processing
 router.get(
@@ -242,6 +174,5 @@ router.get(
   "/health",
   bookingController.healthCheck
 );
-
 
 module.exports = router;
