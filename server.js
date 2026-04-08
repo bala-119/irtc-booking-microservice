@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./app/config/dbConnect");   // your DB file
 //const notificationRoutes = require("./app/routes/sendemailroutes");
@@ -7,7 +8,7 @@ const waitingListProcessor = require('./app/jobs/waitingListProcessor');
 dotenv.config();
 
 const app = express();
-
+app.use(cors());
 app.use(express.json());
 
 // connect MongoDB

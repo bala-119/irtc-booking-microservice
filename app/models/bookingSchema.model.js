@@ -53,8 +53,11 @@ const bookingSchema = new mongoose.Schema({
   train_number: { type: String, required: true, index: true },
   train_name: String,
 
-  from_station: { type: String, required: true },
-  to_station: { type: String, required: true },
+  // from_station: { type: String, required: true },
+  // to_station: { type: String, required: true },
+  from_station_name: { type: String },
+  to_station_name: { type: String },
+
 
   class_type: { type: String, required: true },
   stop_gaps: { type: Number, default: 0 },
@@ -64,7 +67,7 @@ const bookingSchema = new mongoose.Schema({
     enum: ["GENERAL", "TATKAL"],
     default: "GENERAL"
   },
-
+  
   journey_date: { type: Date, required: true, index: true },
 
   passengers: [passengerSchema],

@@ -10,15 +10,20 @@ class BookingController {
     try {
       console.log("Decoding user...");
       const decodedUser = req.user;
+      console.log("Decoded User from token:", decodedUser);
 
       const bookingPayload = {
         ...req.body,
-        user_id: decodedUser.id,
+        user_id: decodedUser.id || decodedUser._id,
         email: decodedUser.email,
         phone: decodedUser.phone,
         fullName: decodedUser.fullName,
         user_name: decodedUser.user_name
       };
+
+      if (!bookingPayload.user_id) {
+        throw new Error("User identification (ID) is missing from token. Please log in again.");
+      }
 
       const booking = await bookingService.bookSeat(bookingPayload);
 
@@ -96,49 +101,85 @@ class BookingController {
   // Add these methods to your existing BookingController class
 
   // Public PNR status check (limited info)
-  async getPublicPNRStatus(req, res) {
-    try {
-      const { pnr } = req.params;
+async getPublicPNRStatus(req, res) {
+  try {
+    const { pnr } = req.params;
 
-      if (!pnr) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "PNR is required" 
-        });
-      }
-
-      const booking = await Booking.findOne({ pnr });
-      
-      if (!booking) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "Booking not found" 
-        });
-      }
-
-      // Return limited info for public view
-      return res.status(200).json({ 
-        success: true, 
-        data: {
-          pnr: booking.pnr,
-          train_number: booking.train_number,
-          train_name: booking.train_name,
-          from_station: booking.from_station,
-          to_station: booking.to_station,
-          journey_date: booking.journey_date,
-          class_type: booking.class_type,
-          booking_status: booking.booking_status,
-          waiting_number: booking.waiting_number,
-          passenger_count: booking.passengers.length
-        }
-      });
-    } catch (err) {
-      return res.status(500).json({ 
+    if (!pnr) {
+      return res.status(400).json({ 
         success: false, 
-        message: err.message 
+        message: "PNR is required" 
       });
     }
+
+    const booking = await Booking.findOne({ pnr });
+    
+    if (!booking) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Booking not found" 
+      });
+    }
+
+    // Return complete booking details from the booking document
+    return res.status(200).json({ 
+      success: true, 
+      data: {
+        // Basic Information
+        pnr: booking.pnr,
+        booking_status: booking.booking_status,
+        booking_type: booking.booking_type || "GENERAL",
+        waiting_number: booking.waiting_number || 0,
+        
+        // Train Information
+        train_number: booking.train_number,
+        train_name: booking.train_name,
+        train_id: booking.train_id,
+        
+        // Journey Details
+        from_station: booking.from_station,
+        to_station: booking.to_station,
+        journey_date: booking.journey_date,
+        class_type: booking.class_type,
+        stop_gaps: booking.stop_gaps,
+        
+        // Passenger Information
+        passengers: booking.passengers,
+        passenger_count: booking.passengers.length,
+        
+        // Seat Details
+        seat_details: booking.seat_details,
+        
+        // Fare Information
+        fare_per_passenger: booking.fare_per_passenger,
+        total_fare: booking.total_fare,
+        
+        // Payment Information
+        payment_status: booking.payment_status,
+        payment_details: booking.payment_details,
+        
+        // Timestamps
+        booking_date: booking.createdAt,
+        confirmed_at: booking.confirmed_at,
+        payment_expires_at: booking.payment_expires_at,
+        
+        // Cancellation Information
+        cancellation_reason: booking.cancellation_reason,
+        cancelled_at: booking.cancelled_at,
+        
+        // Additional Info
+        schedule_id: booking.schedule_id,
+        user_id: booking.user_id
+      }
+    });
+  } catch (err) {
+    console.error("PNR Status Error:", err);
+    return res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
   }
+}
 
   // Get user's all bookings
   async getMyBookings(req, res) {
