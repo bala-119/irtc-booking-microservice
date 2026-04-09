@@ -53,8 +53,8 @@ const bookingSchema = new mongoose.Schema({
   train_number: { type: String, required: true, index: true },
   train_name: String,
 
-  // from_station: { type: String, required: true },
-  // to_station: { type: String, required: true },
+  from_station: { type: String, required: true },
+  to_station: { type: String, required: true },
   from_station_name: { type: String },
   to_station_name: { type: String },
 

@@ -2,6 +2,10 @@ const Schedule = require("../models/scheduleSchema.model");
 const axios = require("axios");
 const mongoose = require("mongoose");
 
+const BASE_FARE_PER_STOP = {
+  "SL": 100, "2S": 80, "3AC": 250, "2AC": 350, "1AC": 500, "CC": 200
+};
+
 class ScheduleService {
 
   async getTrain(train_number) {
@@ -208,12 +212,22 @@ async searchSchedules(fromStationName, toStationName, date, sortBy = null, class
             availableSeats = train.availability[classType].available_seats;
           }
           
+          // Distance-based pricing
+          const stopGaps = train.stop_gaps || 0;
+          const totalStops = train.total_stops || 1;
+          
+          let calculatedPrice = (BASE_FARE_PER_STOP[classType] || 100) * stopGaps;
+          if (train.class_pricing?.[classType]) {
+            const fareRatio = stopGaps / totalStops;
+            calculatedPrice = Math.round(train.class_pricing[classType] * fareRatio);
+          }
+
           seats[classType] = {
             total: classData.total || 0,
             available: availableSeats,
             waiting_list_count: classData.waiting_count || 0,
             max_waiting: classData.max_waiting || classData.total || 0,
-            price: train.class_pricing?.[classType] || null
+            price: calculatedPrice || null
           };
         }
       } else if (train.availability) {
@@ -224,12 +238,22 @@ async searchSchedules(fromStationName, toStationName, date, sortBy = null, class
             continue;
           }
           
+          // Distance-based pricing
+          const stopGaps = train.stop_gaps || 0;
+          const totalStops = train.total_stops || 1;
+          
+          let calculatedPrice = (BASE_FARE_PER_STOP[classType] || 100) * stopGaps;
+          if (train.class_pricing?.[classType]) {
+            const fareRatio = stopGaps / totalStops;
+            calculatedPrice = Math.round(train.class_pricing[classType] * fareRatio);
+          }
+
           seats[classType] = {
             total: 0,
             available: availabilityData.available_seats || 0,
             waiting_list_count: 0,
             max_waiting: 0,
-            price: train.class_pricing?.[classType] || null
+            price: calculatedPrice || null
           };
         }
       }

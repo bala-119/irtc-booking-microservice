@@ -855,21 +855,19 @@ async confirmPayment(req, res) {
       return res.status(200).json({
         success: true,
         data: {
-          booking: {
-            pnr: booking.pnr,
-            train_number: booking.train_number,
-            train_name: booking.train_name,
-            from_station: booking.from_station,
-            to_station: booking.to_station,
-            class_type: booking.class_type,
-            journey_date: booking.journey_date,
-            passengers: booking.passengers,
-            seat_details: booking.seat_details,
-            booking_status: booking.booking_status,
-            waiting_number: booking.waiting_number,
-            total_fare: booking.total_fare,
-            confirmed_at: booking.confirmed_at
-          },
+          pnr: booking.pnr,
+          train_number: booking.train_number,
+          train_name: booking.train_name,
+          from_station: booking.from_station_name || booking.from_station,
+          to_station: booking.to_station_name || booking.to_station,
+          class_type: booking.class_type,
+          journey_date: booking.journey_date,
+          passengers: booking.passengers,
+          seat_details: booking.seat_details,
+          booking_status: booking.booking_status,
+          waiting_number: booking.waiting_number,
+          total_fare: booking.total_fare,
+          confirmed_at: booking.confirmed_at,
           payment: booking.payment_details
         }
       });
